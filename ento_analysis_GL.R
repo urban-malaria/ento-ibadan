@@ -8,113 +8,7 @@
 # clear current workspace
 rm(list=ls())
 
-## =========================================================================================================================================
-### Directory Management and File Paths
-## =========================================================================================================================================
-
-user <- Sys.getenv("USER")
-if ("ifeomaozodiegwu" %in% user) {
-  Drive <- file.path(gsub("[\\]", "/", gsub("Documents", "", Sys.getenv("HOME"))))
-  NuDir <- file.path(Drive, "Library", "CloudStorage", "OneDrive-NorthwesternUniversity", "urban_malaria")
-  EntoDat <- file.path(NuDir, "data", "nigeria", "kano_ibadan_ento", "Osun-excel")
-  ResultDir <-file.path(NuDir, "projects/project_implementation/analysis_output/ento_plots")
-  shapepath <- file.path(NuDir,"/data/nigeria/kano_ibadan_shape_files")
-} else if ("grace" %in% user) {
-  Drive <- "/Users/grace/Urban Malaria Proj Dropbox"
-  NuDir <- file.path(Drive, "urban_malaria")
-  EntoDat <- file.path(NuDir, "data", "nigeria", "kano_ibadan", "kano_ibadan_ento", "Osun-excel")
-  WetData <- file.path(NuDir, "data", "nigeria", "kano_ibadan", "kano_ibadan_ento", "Wet Season Data_Ibadan")
-  ResultDir <- file.path(NuDir, "projects/Manuscripts/ongoing/dry season entomology_manuscript/Grace/figures/plots")
-  shapepath <- file.path(NuDir,"/data/nigeria/kano_ibadan/kano_ibadan_shape_files")
-} else {
-  user <- Sys.getenv("USERNAME")
-  Drive <- file.path(gsub("[\\]", "/", gsub("Documents", "", Sys.getenv("HOME"))))
-  NuDir <- file.path(Drive, "urban_malaria")
-  shapepath <- file.path(NuDir,"/data/nigeria/kano_ibadan_shape_files")
-  NuCDir <- file.path(Drive, "my_stuff")
-  ProjectDir <- file.path(NuDir, "data", 'nigeria','nigeria_dhs' , 'data_analysis')
-  EntoDat <- file.path(NuDir, "data", "nigeria",  "kano_ibadan", "kano_ibadan_ento", "Osun-excel")
-  ResultDir <-file.path(NuDir, "projects/project_implementation/analysis_output/ento_plots")
-  DataDir <- file.path(ProjectDir, 'data', 'DHS', 'Downloads')
-}
-
-
-## =========================================================================================================================================
-### Required Libraries and Functions
-## =========================================================================================================================================
-
-# load necessary libraries
-library(readxl)
-library(sf)
-library(vcd)
-library(ggplot2)
-#library(tmap)
-library(ggrepel)
-library(tidyverse)
-library(geometry)
-library(dplyr)
-#library(rgdal)
-library(fun)
-library(patchwork)
-#library(rgeos)
-#library(maptools)
-library(purrr)
-library(DescTools)
-library(conflicted)
-library(stringr)
-library(readxl)
-library(dplyr)
-library(gridExtra)
-library(sf)
-library(ggrepel)
-library(car)
-library(officer)
-library(openxlsx)
-library(ggforce)
-library(scatterpie)
-library(ggnewscale)
-
-# define a custom theme for maps
-map_theme <- function(){
-  theme(axis.text.x = ggplot2::element_blank(),
-        axis.text.y = ggplot2::element_blank(),
-        axis.ticks = ggplot2::element_blank(),
-        rect = ggplot2::element_blank(),
-        plot.background = ggplot2::element_rect(fill = "white", colour = NA),
-        plot.title = element_text(hjust = 0.5),
-        legend.title.align=0.5,
-        legend.title=element_text(size=8, colour = 'black'),
-        legend.text =element_text(size = 8, colour = 'black'),
-        legend.key.height = unit(0.65, "cm"))
-}
-
-# function to create a ggplot object for geographic data
-con_gplot <-function(df,fill,label){
-  ggplot()+
-    geom_sf(data=df, mapping=aes(fill = !!fill)) +
-    map_theme() +
-    geom_text_repel(
-      data = df,
-      aes(label = !!label, geometry = geometry),color ='black',
-      stat = "sf_coordinates",
-      min.segment.length = 0, size = 1.5, force = 1, max.overlaps = Inf)+
-    xlab('')+
-    ylab('')
-}
-
-# define a custom theme for manuscript-style plots
-theme_manuscript <- function(){
-  theme_bw() +
-    theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5),
-          plot.title = element_text(hjust = 0.5),
-          axis.text.x = element_text(size = 16, color = "black"),
-          axis.text.y = element_text(size = 16, color = "black"),
-          axis.title.x = element_text(size = 16),
-          axis.title.y = element_text(size =16),
-          legend.title=element_text(size=16, colour = 'black'),
-          legend.text =element_text(size = 16, colour = 'black'),
-          legend.key.height = unit(1, "cm"))
-}
+source("Ento/load_path.R")
 
 
 ## =========================================================================================================================================
@@ -134,17 +28,20 @@ files <- list.files(
 )
 
 # read all Excel files into a list of data frames
-excel_dfs <- sapply(files, read_xlsx, simplify = FALSE)
+excel_dfs <- sapply(files, readxl::read_xlsx, simplify = FALSE)
 
 # display the names of the data frames in the list
 names(excel_dfs)
 
-# combine the third, fourth, and fifth data frames into one (all CDC light trap data)
-cdc <- rbind(excel_dfs[[3]], excel_dfs[[4]], excel_dfs[[5]])
+# combine the fourth, fifth, and sixth data frames into one (all CDC light trap data)
+cdc <- rbind(excel_dfs[[4]], excel_dfs[[5]], excel_dfs[[6]])
 
 # filter for only Ibadan data (remove Kano data)
 cdc <- cdc %>%
-  filter(City == "Ibadan")
+  dplyr::filter(City == "Ibadan")
+
+# save dataset
+write_xlsx(cdc, file.path(EntoDat, "cdc_ibadan_dry.xlsx"))
 
 ## =========================================================================================================================================
 ### Indoor Transmission: Ibadan
@@ -185,6 +82,7 @@ indoor_anopheles_plot <- ggplot(data = indoor_cdc, aes(
     legend.text = element_text(size = 9),
     legend.background = element_rect(color = "black", size = 0.5)
   )
+indoor_anopheles_plot
 
 # save the indoor plot as a PDF file
 ggsave(filename = paste0(ResultDir, "/", Sys.Date(), '_indoor_cdc_ibadan.pdf'), plot = indoor_anopheles_plot, width = 8, height = 6)
@@ -229,6 +127,7 @@ outdoor_anopheles_plot <- ggplot(data = outdoor_cdc, aes(
     legend.text = element_text(size = 9),
     legend.background = element_rect(color = "black", size = 0.5)
   )
+outdoor_anopheles_plot
 
 # save the outdoor plot as a PDF file
 ggsave(filename = paste0(ResultDir, "/", Sys.Date(), '_outdoor_cdc_ibadan.pdf'), plot = outdoor_anopheles_plot, width = 8, height = 6)
@@ -292,7 +191,7 @@ ggsave(paste0(ResultDir, "/", Sys.Date(), "_wards_sampled_ibadan.pdf"), wards_ib
 ## -----------------------------------------------------------------------------------------------------------------------------------------
 
 # combine relevant dataframes for Pyrethrum Spray Catches (PSC)
-psc <- rbind(excel_dfs[[6]], excel_dfs[[7]], excel_dfs[[8]])
+psc <- rbind(excel_dfs[[7]], excel_dfs[[8]], excel_dfs[[9]])
 
 # filter PSC data for only Ibadan (Oyo State)
 psc <- psc %>%
@@ -417,11 +316,11 @@ psc_wet_counts <- psc_wet %>%
 
 # data cleaning for cdc_dry data
 cdc_dry <- cdc_dry %>%
-  mutate(`Type of Anopheles_1` = recode(`Type of Anopheles_1`, 
-                                        "Gambiens" = "An.gambiae", 
-                                        "An. gambiense" = "An.gambiae", 
-                                        "An. gambiae" = "An.gambiae", 
-                                        "An. funestus" = "An.funestus"))
+  mutate(`Type of Anopheles_1` = dplyr::recode(`Type of Anopheles_1`, 
+                                               "Gambiens" = "An.gambiae", 
+                                               "An. gambiense" = "An.gambiae", 
+                                               "An. gambiae" = "An.gambiae", 
+                                               "An. funestus" = "An.funestus"))
 
 # new columns for An.gambiae and An.funestus
 cdc_dry_counts <- cdc_dry %>%
@@ -439,9 +338,9 @@ cdc_dry_counts <- cdc_dry %>%
 # data cleaning for psc dry data
 psc_dry_counts <- psc_dry %>%
   rename(city = City, ward_name = Ward, day = Day, month = Month, year = Year, method = Method, household_code = `Household Code`,
-           An.gambiae = `An. Gambiae`, An.funestus = `An.Funestus`, Other = Others_1, fed_An.gambiae = `Number Fed Gambiae`, 
-           unfed_An.gambiae = `Number Unfed Gambiae`, fed_An.funestus = `Number Fed. Funestus`, unfed_An.funestus = `Number Unfed Funestus`, 
-           fed_Other = `Number Fed.Others_1`, unfed_Other = `Number Unfed Others_1`) %>%
+         An.gambiae = `An. Gambiae`, An.funestus = `An.Funestus`, Other = Others_1, fed_An.gambiae = `Number Fed Gambiae`, 
+         unfed_An.gambiae = `Number Unfed Gambiae`, fed_An.funestus = `Number Fed. Funestus`, unfed_An.funestus = `Number Unfed Funestus`, 
+         fed_Other = `Number Fed.Others_1`, unfed_Other = `Number Unfed Others_1`) %>%
   mutate(
     location = NA,
     Culicine = NA,
@@ -470,7 +369,7 @@ all_ento_data <- bind_rows(cdc_dry_counts, cdc_wet_counts, psc_dry_counts, psc_w
 # recode wet season erroneous "informal" settlement type values to "slum"
 all_ento_data <- all_ento_data %>%
   mutate(
-     settlement_type = case_when(
+    settlement_type = case_when(
       season == "wet" & settlement_type == "Informal" ~ "Slum",
       TRUE ~ settlement_type)
   ) %>%
@@ -487,7 +386,7 @@ all_ento_data <- all_ento_data %>%
 check_df <- all_ento_data %>%
   select(Anopheles, An.gambiae, An.funestus) %>%
   dplyr::filter(!(Anopheles == 0 & An.gambiae == 0 & An.funestus == 0))
-  
+
 # save this formatted df
 write.xlsx(all_ento_data, file.path(EntoDat, "all_ento_dry_wet_data.xlsx"))
 
@@ -533,6 +432,7 @@ species_inv_plot <- ggplot(species_inventory, aes(x = species, y = count, fill =
   theme(legend.position = "none") + 
   theme(plot.subtitle = element_text(hjust = 0.5)) +
   scale_y_continuous(breaks = seq(0, 2500, by = 500), limits = c(0, 2700))
+species_inv_plot
 
 # save as .pdf
 ggsave(filename = paste0(ResultDir, "/", Sys.Date(), '_species_inv_plot.pdf'), plot = species_inv_plot, width = 8, height = 8)
@@ -687,7 +587,7 @@ species_for_map <- all_ento_data %>%
   ) %>%
   select(settlement_type, total_Anopheles, total_NonVector)
 
-  
+
 # exclude settlement type = NA
 #species_for_map = subset(species_for_map, !(species %in% c("total_Culicine")))
 species_for_map = subset(species_for_map, !(settlement_type %in% c(NA)))
@@ -825,6 +725,10 @@ totals <- species_inventory_by_season %>%
     `Wet Season Abundance (%) in Ibadan` = `Season: wet`
   )
 
+# ensure same data format
+# species_inventory_formatted$`Dry Season Abundance (%) in Ibadan` <- as.numeric(unlist(species_inventory_formatted$`Dry Season Abundance (%) in Ibadan`))
+# totals$`Dry Season Abundance (%) in Ibadan` <- as.numeric(totals$`Dry Season Abundance (%) in Ibadan`)
+
 # combine species data with totals
 final_table <- bind_rows(species_inventory_formatted, totals)
 
@@ -891,7 +795,7 @@ dry_method_df <- method_df %>%
   dplyr::filter(season %in% c("dry"))
 
 method_palette <- c("#696d7d", "#8d9f87", "#f0dcca")
-             
+
 # plot wet season species composition data
 wet_species_by_method <- ggplot(wet_method_df, aes(x = species, y = count, fill = collection_type)) +
   geom_bar(stat = "identity") +
@@ -935,6 +839,59 @@ dry_species_by_method
 # save as .pdf
 ggsave(filename = paste0(ResultDir, "/", Sys.Date(), '_wet_species_method_plot.pdf'), plot = wet_species_by_method, width = 12, height = 8)
 ggsave(filename = paste0(ResultDir, "/", Sys.Date(), '_dry_species_method_plot.pdf'), plot = dry_species_by_method, width = 12, height = 8)
+
+## -----------------------------------------------------------------------------------------------------------------------------------------
+### 3b) Comparison of Species Composition by Collection Method (Indoor CDC, Outdoor CDC, PSC)
+### Edit: Combine dry and wet seasons into one plot, add percentage labels, group PSC with indoor CDC
+## -----------------------------------------------------------------------------------------------------------------------------------------
+
+# create a summary dataframe to calculate counts and percentages
+updated_method_df <- all_ento_data %>%
+  dplyr::filter(!is.na(settlement_type)) %>% # remove observations with missing settlement_type
+  mutate(
+    collection_type = case_when( # group indoor CDC and PSC together, outdoor CDC remains "outdoor"
+      method == "CDC" & location == "Indoor" ~ "Indoor (CDC + PSC)",
+      method == "PSC" ~ "Indoor (CDC + PSC)",
+      method == "CDC" & location == "Outdoor" ~ "Outdoor (CDC)"
+    )
+  ) %>%
+  group_by(settlement_type, collection_type, season) %>%
+  summarise(
+    An_gambiae_sum = sum(An.gambiae, na.rm = TRUE),
+    An_funestus_sum = sum(An.funestus, na.rm = TRUE)
+  ) %>%
+  pivot_longer(cols = c(An_gambiae_sum, An_funestus_sum), names_to = "species", values_to = "count") %>%
+  group_by(settlement_type, season) %>%
+  mutate(percentage = (count / sum(count)) * 100)
+
+season_palette <- c("wet" = "#0d80bf", "dry" = "#d9af8d")
+
+# Create grouped bar plot
+species_distribution_plot <- ggplot(updated_method_df, aes(x = species, y = count, fill = season)) +
+  geom_bar(stat = "identity", position = "dodge") +  # Group bars by season
+  geom_text(aes(label = count),
+            position = position_dodge(width = 0.9), vjust = -0.5, size = 6) + # Add counts
+  # geom_text(aes(label = paste0(count, " (", round(percentage, 1), "%)")),
+  #           position = position_dodge(width = 0.9), vjust = -0.5, size = 3) + # Add counts & percentages
+  facet_grid(settlement_type ~ collection_type) +  # Facet by settlement type and collection method
+  scale_fill_manual(values = season_palette, name = "Season", labels = c("Dry", "Wet")) +
+  scale_x_discrete(labels = c("An. funestus", "An. gambiae")) +
+  labs(
+    title = "Mosquito Species Distribution by Season, Settlement Type, and Collection Method",
+    x = "Species",
+    y = "Number of Mosquitoes",
+    fill = "Season"
+  ) +
+  theme_manuscript() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    strip.text = element_text(size = 14)
+  )
+
+species_distribution_plot
+
+# save as .pdf
+ggsave(filename = paste0(ResultDir, "/", Sys.Date(), '_updated_species_distribution.pdf'), plot = species_distribution_plot, width = 10, height = 12)
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------
 ### 4) Blood Meal Status (PSC Data Only) by Species and Settlement Type
@@ -1467,7 +1424,7 @@ ird_settlement <- psc_wet_dry %>%
   ) %>%
   mutate(IRD = total_anopheles_caught / total_rooms_sampled) %>%  # calculate IRD
   select(settlement_type, IRD)
-  
+
 # get sporozoite rate by settlement type
 sporozoite_settlement <- molecular_df %>%
   group_by(ward_name) %>%
