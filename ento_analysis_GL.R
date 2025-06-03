@@ -8,7 +8,7 @@
 # clear current workspace
 rm(list=ls())
 
-source("Ento/load_path.R")
+source("load_path.R")
 
 
 ## =========================================================================================================================================
@@ -34,7 +34,7 @@ excel_dfs <- sapply(files, readxl::read_xlsx, simplify = FALSE)
 names(excel_dfs)
 
 # combine the fourth, fifth, and sixth data frames into one (all CDC light trap data)
-cdc <- rbind(excel_dfs[[4]], excel_dfs[[5]], excel_dfs[[6]])
+cdc <- rbind(excel_dfs[[5]], excel_dfs[[6]], excel_dfs[[7]])
 
 # filter for only Ibadan data (remove Kano data)
 cdc <- cdc %>%
@@ -42,6 +42,8 @@ cdc <- cdc %>%
 
 # save dataset
 write_xlsx(cdc, file.path(EntoDat, "cdc_ibadan_dry.xlsx"))
+
+cdc <- read_excel(file.path(EntoDat, "cdc_ibadan_dry.xlsx"))
 
 ## =========================================================================================================================================
 ### Indoor Transmission: Ibadan
@@ -191,11 +193,7 @@ ggsave(paste0(ResultDir, "/", Sys.Date(), "_wards_sampled_ibadan.pdf"), wards_ib
 ## -----------------------------------------------------------------------------------------------------------------------------------------
 
 # combine relevant dataframes for Pyrethrum Spray Catches (PSC)
-psc <- rbind(excel_dfs[[7]], excel_dfs[[8]], excel_dfs[[9]])
-
-# filter PSC data for only Ibadan (Oyo State)
-psc <- psc %>%
-  dplyr::filter(State == "Oyo")
+psc <- rbind(excel_dfs[[8]], excel_dfs[[9]], excel_dfs[[10]])
 
 # filter PSC data for Oyo state and aggregate by settlement classification and month
 psc_grouped <- psc %>%
@@ -726,8 +724,8 @@ totals <- species_inventory_by_season %>%
   )
 
 # ensure same data format
-# species_inventory_formatted$`Dry Season Abundance (%) in Ibadan` <- as.numeric(unlist(species_inventory_formatted$`Dry Season Abundance (%) in Ibadan`))
-# totals$`Dry Season Abundance (%) in Ibadan` <- as.numeric(totals$`Dry Season Abundance (%) in Ibadan`)
+#species_inventory_formatted$`Dry Season Abundance (%) in Ibadan` <- as.numeric(unlist(species_inventory_formatted$`Dry Season Abundance (%) in Ibadan`))
+#totals$`Dry Season Abundance (%) in Ibadan` <- as.numeric(totals$`Dry Season Abundance (%) in Ibadan`)
 
 # combine species data with totals
 final_table <- bind_rows(species_inventory_formatted, totals)
@@ -776,9 +774,9 @@ method_df <- all_ento_data %>%
   dplyr::filter(!is.na(settlement_type)) %>% # remove observations for which settlement_type is NA
   mutate( # separate CDC by indoor and outdoor, PSC remains as-is
     collection_type = case_when(
-      method == "CDC" & location == "Indoor" ~ "Indoor CDC",
-      method == "CDC" & location == "Outdoor" ~ "Outdoor CDC",
-      method == "PSC" ~ "PSC"
+      method == "CDC" & location == "Indoor" ~ "Indoor (CDC + PSC)",
+      method == "CDC" & location == "Outdoor" ~ "Outdoor (CDC)",
+      method == "PSC" ~ "Indoor (CDC + PSC)"
     )
   ) %>%
   group_by(settlement_type, collection_type, season) %>%
@@ -794,21 +792,31 @@ wet_method_df <- method_df %>%
 dry_method_df <- method_df %>%
   dplyr::filter(season %in% c("dry"))
 
-method_palette <- c("#696d7d", "#8d9f87", "#f0dcca")
+wet_method_df_anopheles <- wet_method_df %>%
+  mutate(species = "Anopheles") %>%
+  group_by(settlement_type, collection_type, season, species) %>%
+  summarise(count = sum(count), .groups = "drop")
+dry_method_df_anopheles <- dry_method_df %>%
+  mutate(species = "Anopheles") %>%
+  group_by(settlement_type, collection_type, season, species) %>%
+  summarise(count = sum(count), .groups = "drop")
+
+method_palette <- c("#8d9f87", "#f0dcca", "#696d7d")
 
 # plot wet season species composition data
-wet_species_by_method <- ggplot(wet_method_df, aes(x = species, y = count, fill = collection_type)) +
+wet_species_by_method <- ggplot(wet_method_df_anopheles, aes(x = species, y = count, fill = collection_type)) +
   geom_bar(stat = "identity") +
   facet_wrap(~settlement_type) +
+  geom_text(aes(label = count), position = position_stack(vjust = 0.5), hjust = -0.1, size = 6, color = "white") +
   scale_fill_manual(
     values = method_palette,
     name = "Collection Method",
-    labels = c("Indoor CDC", "Outdoor CDC", "PSC")
+    labels = c("Indoor (CDC + PSC)", "Outdoor (CDC)")
   ) +
-  scale_x_discrete(labels = c("An. funestus", "An. gambiae")) +
+  scale_x_discrete(labels = c("Count")) +
   labs(
     title = "Mosquito Species by Collection Method \nand Settlement Type: Wet Season",
-    x = "Species",
+    x = "Count of Anopheles Collected",
     y = "Number of Mosquitoes",
     fill = "Collection Method"
   ) +
@@ -817,18 +825,19 @@ wet_species_by_method <- ggplot(wet_method_df, aes(x = species, y = count, fill 
 wet_species_by_method
 
 # plot dry season species composition data
-dry_species_by_method <- ggplot(dry_method_df, aes(x = species, y = count, fill = collection_type)) +
+dry_species_by_method <- ggplot(dry_method_df_anopheles, aes(x = species, y = count, fill = collection_type)) +
   geom_bar(stat = "identity") +
   facet_wrap(~settlement_type) +
+  geom_text(aes(label = count), position = position_stack(vjust = 0.5), hjust = -0.1, size = 6, color = "white") +
   scale_fill_manual(
     values = method_palette,
     name = "Collection Method",
-    labels = c("Indoor CDC", "Outdoor CDC", "PSC")
+    labels = c("Indoor (CDC + PSC)", "Outdoor (CDC)")
   ) +
-  scale_x_discrete(labels = c("An. funestus", "An. gambiae")) +
+  scale_x_discrete(labels = c("Count")) +
   labs(
     title = "Mosquito Species by Collection Method \nand Settlement Type: Dry Season",
-    x = "Species",
+    x = "Count of Anopheles Collected",
     y = "Number of Mosquitoes",
     fill = "Collection Method"
   ) +
@@ -839,6 +848,35 @@ dry_species_by_method
 # save as .pdf
 ggsave(filename = paste0(ResultDir, "/", Sys.Date(), '_wet_species_method_plot.pdf'), plot = wet_species_by_method, width = 12, height = 8)
 ggsave(filename = paste0(ResultDir, "/", Sys.Date(), '_dry_species_method_plot.pdf'), plot = dry_species_by_method, width = 12, height = 8)
+
+# -----------------------------------------------------------------------------------------------------------------------------#
+
+# combine wet and dry season collapsed data
+combined_df_anopheles <- bind_rows(wet_method_df_anopheles, dry_method_df_anopheles)
+
+# create side-by-side bar plot by season within settlement_type facets
+species_by_method_combined <- ggplot(combined_df_anopheles, aes(x = season, y = count, fill = collection_type)) +
+  geom_bar(stat = "identity", position = "stack") +
+  facet_wrap(~ settlement_type) +
+  geom_text(aes(label = count), position = position_stack(vjust = 0.5), size = 6, color = "white") +
+  scale_fill_manual(
+    values = method_palette,
+    name = "Collection Method",
+    labels = c("Indoor (CDC + PSC)", "Outdoor (CDC)")
+  ) +
+  labs(
+    title = "Mosquito Species by Collection Method, Season, and Settlement Type",
+    x = "Season",
+    y = "Number of Anopheles Collected",
+    fill = "Collection Method"
+  ) +
+  theme_manuscript() +
+  theme(plot.title = element_text(size = 14))
+
+# display the plot
+species_by_method_combined
+
+ggsave(filename = paste0(ResultDir, "/", Sys.Date(), '_combined_species_collection_plot.pdf'), plot = species_by_method_combined, width = 10, height = 6)
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------
 ### 3b) Comparison of Species Composition by Collection Method (Indoor CDC, Outdoor CDC, PSC)

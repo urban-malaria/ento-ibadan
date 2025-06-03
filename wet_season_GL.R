@@ -122,7 +122,7 @@ p <- ggplot(df_ib) +
   geom_sf(fill = NA) +
   geom_text_repel(data = df_ib, aes(label = WardName, geometry = geometry), color = 'black',
                   stat = "sf_coordinates", min.segment.length = 0, size = 3.5, force = 1) +
-  map_theme() +
+  # map_theme() +
   labs(title = "Wards in Ibadan") +
   coord_sf()
 
@@ -163,7 +163,7 @@ ggplot(df_ib_a) +
   geom_text_repel(data = df_ib_a, aes(label = WardName, geometry = geometry), color = 'black',
                   stat = "sf_coordinates", min.segment.length = 0, size = 2.5, force = 1, max.overlaps = Inf) +
   guides(alpha = FALSE, size = FALSE) +
-  map_theme() +
+  #map_theme() +
   labs(title = "Sites for Wet Season Ento (Agugu)") +
   coord_sf()
 
@@ -189,7 +189,7 @@ ggplot(df_ib_a) +
     max.overlaps = Inf
   ) +
   guides(alpha = FALSE, size = FALSE) +
-  map_theme() +
+  #map_theme() +
   ylab("") +
   xlab("") +
   labs(title = "Sites for Wet Season CDC Ento Collection (Agugu)") +
@@ -216,7 +216,7 @@ ggplot(df_ib_c) +
     max.overlaps = Inf
   ) +
   guides(alpha = FALSE, size = FALSE) +
-  map_theme() +
+  #map_theme() +
   ylab("") +
   xlab("") +
   labs(title = "Sites for Wet Season Ento (Challenge)") +
@@ -244,7 +244,7 @@ ggplot(df_ib_c) +
     max.overlaps = Inf
   ) +
   guides(alpha = FALSE, size = FALSE) +
-  map_theme() +
+  #map_theme() +
   ylab("") +
   xlab("") +
   labs(title = "Sites for Wet Season CDC Ento Collection (Challenge)") +
