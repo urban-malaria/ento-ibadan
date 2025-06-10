@@ -232,7 +232,11 @@ psc_locations_plot <- ggplot(ibadan.shp) +
   geom_point(
     data = dplyr::filter(psc, State == "Oyo"), 
     mapping = aes(x = Longitude, y = Latitude), 
-    colour = "#6699CC", size = 2
+    shape = 21,
+    fill = "red",
+    color = "black",
+    size = 1.5,
+    stroke = 0.2
   ) +
   # geom_text_repel(
   #   data = ibadan.shp,
@@ -251,7 +255,7 @@ psc_locations_plot <- ggplot(ibadan.shp) +
 psc_locations_plot
 
 # save the plot
-ggsave(paste0(ResultDir, "/", Sys.Date(), "_locations_psc_ibadan.pdf"), psc_locations_plot, width = 8, height = 6)
+ggsave(paste0(NewFigDir, "/", Sys.Date(), "_locations_psc_ibadan.pdf"), psc_locations_plot, width = 8, height = 6)
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------
 ### Combine Ward Plots into Grid
