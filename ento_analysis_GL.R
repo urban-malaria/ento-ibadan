@@ -362,7 +362,7 @@ all_ento_data <- all_ento_data %>%
 # recode the one Zango ward to Challenge (it has household_code = 14085 which all belong in Challenge ward)
 all_ento_data <- all_ento_data %>% 
   mutate(settlement_type = case_when(
-    ward_name == "Zango" ~ "Informal",
+    ward_name == "Zango" ~ "Formal",
     TRUE ~ settlement_type
   )) %>% 
   mutate(ward_name = case_when(
