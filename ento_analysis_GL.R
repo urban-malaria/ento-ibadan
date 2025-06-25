@@ -61,7 +61,7 @@ indoor_anopheles_plot <- ggplot(data = indoor_cdc, aes(
   y = total_mosquitoes, 
   group = `Settlement Classification`, 
   colour = `Settlement Classification`)) +
-  scale_x_discrete(limits = c("6-7pm", "7-8pm", "8-9pm", "9-10pm", "10-11pm", "11-12am", "12-1am", "1-2am", "2-3am", "3-4am", "5-6am")) + 
+  scale_x_discrete(limits = c("6-7pm", "7-8pm", "8-9pm", "9-10pm", "10-11pm", "11-12am", "12-1am", "1-2am", "2-3am", "3-4am", "4-5am", "5-6am")) + 
   geom_point() + 
   labs(
     y = "Total Number of Anopheles \nMosquitos Caught per Hour",
@@ -86,7 +86,7 @@ indoor_anopheles_plot <- ggplot(data = indoor_cdc, aes(
 indoor_anopheles_plot
 
 # save the indoor plot as a PDF file
-ggsave(filename = paste0(ResultDir, "/", Sys.Date(), '_indoor_cdc_ibadan.pdf'), plot = indoor_anopheles_plot, width = 8, height = 6)
+ggsave(file.path(NewFigDir, '_indoor_cdc_ibadan.pdf'), plot = indoor_anopheles_plot, width = 8, height = 6)
 
 ## =========================================================================================================================================
 ### Outdoor Transmission: Ibadan
@@ -106,7 +106,7 @@ outdoor_anopheles_plot <- ggplot(data = outdoor_cdc, aes(
   group = `Settlement Classification`, 
   colour = `Settlement Classification`
 )) + 
-  scale_x_discrete(limits = c("6-7pm", "7-8pm", "8-9pm", "9-10pm", "10-11pm", "11-12am", "12-1am", "1-2am", "2-3am", "3-4am", "5-6am")) + 
+  scale_x_discrete(limits = c("6-7pm", "7-8pm", "8-9pm", "9-10pm", "10-11pm", "11-12am", "12-1am", "1-2am", "2-3am", "3-4am", "4-5am", "5-6am")) + 
   geom_point() + 
   labs(
     y = "Total Number of Anopheles \nMosquitos Caught per Hour",
@@ -131,7 +131,7 @@ outdoor_anopheles_plot <- ggplot(data = outdoor_cdc, aes(
 outdoor_anopheles_plot
 
 # save the outdoor plot as a PDF file
-ggsave(filename = paste0(ResultDir, "/", Sys.Date(), '_outdoor_cdc_ibadan.pdf'), plot = outdoor_anopheles_plot, width = 8, height = 6)
+ggsave(file.path(NewFigDir, '_outdoor_cdc_ibadan.pdf'), plot = outdoor_anopheles_plot, width = 8, height = 6)
 
 # remove x axis label from indoor biting plot
 indoor_anopheles_plot <- indoor_anopheles_plot + theme(axis.title.x = element_blank())
@@ -140,7 +140,7 @@ indoor_anopheles_plot <- indoor_anopheles_plot + theme(axis.title.x = element_bl
 hourly_biting_plots <- grid.arrange(indoor_anopheles_plot, outdoor_anopheles_plot, nrow = 2, ncol = 1)
 
 # save combined plots as .pdf
-ggsave(filename = paste0(NewFigDir, '_bitingrate_cdc_ibadan.pdf'), plot = hourly_biting_plots, width = 8, height = 6)
+ggsave(file.path(NewFigDir, '_bitingrate_cdc_ibadan.pdf'), plot = hourly_biting_plots, width = 8, height = 6)
 
 ## =========================================================================================================================================
 ### FIGURE 1 - MAPS (Wards Sampled and PSC Households Visited)
@@ -160,7 +160,7 @@ ibadan.shp$ward_color <- ifelse(ibadan.shp$WardName %in% c("Agugu", "Olopomewa",
 
 # extract ward names and save them to a CSV
 ib_w <- ibadan.shp$WardName
-write.csv(ib_w, file.path(NuDir, "ib_wards.csv"), row.names = FALSE)
+#write.csv(ib_w, file.path(NuDir, "ib_wards.csv"), row.names = FALSE)
 
 # plot: ibadan metro area showing selected wards
 wards_ibadan_plot <- ggplot(ibadan.shp) +
@@ -359,10 +359,10 @@ all_ento_data <- all_ento_data %>%
     )
   )
 
-# recode the one Zango ward to Challenge (it has household_code = 14085 which all belong in Challenge ward)
+# recode the one Zango ward to Challenge (it has household_code = 14085 which all belong in Challenge ward and are Formal)
 all_ento_data <- all_ento_data %>% 
   mutate(settlement_type = case_when(
-    ward_name == "Zango" ~ "Informal",
+    ward_name == "Zango" ~ "Formal",
     TRUE ~ settlement_type
   )) %>% 
   mutate(ward_name = case_when(
@@ -483,6 +483,28 @@ ggsave(filename = paste0(ResultDir, "/", Sys.Date(), '_species_pie_map.pdf'), pl
 library(dplyr)
 library(tidyr)
 library(tibble)
+
+# df to calculate counts of each species by season
+species_inventory_by_season <- all_ento_data %>%
+  group_by(season, settlement_type) %>% 
+  summarise(
+    total_An.gambiae = sum(An.gambiae, na.rm = TRUE),
+    total_An.funestus = sum(An.funestus, na.rm = TRUE),
+    total_Culicine = sum(Culicine, na.rm = TRUE),
+    total_Other = sum(Other, na.rm = TRUE)
+  ) %>%
+  pivot_longer(
+    cols = starts_with("total_"), # include all species columns starting with "total_"
+    names_to = "species",
+    values_to = "count"
+  ) %>%
+  # calculate total count and proportions for each settlement type within each season
+  group_by(season, settlement_type) %>%
+  mutate(
+    total_count = sum(count, na.rm = TRUE), # total count for the settlement type and season
+    proportion = (count / total_count) * 100 # proportion for each species
+  ) %>%
+  ungroup()
 
 # summarize counts by species and season
 species_summary <- species_inventory_by_season %>%
@@ -609,6 +631,8 @@ dry_method_df_anopheles <- dry_method_df %>%
 combined_df_anopheles <- bind_rows(wet_method_df_anopheles, dry_method_df_anopheles)
 
 # create side-by-side bar plot by season within settlement_type facets
+method_palette <- c("#8d9f87", "#f0dcca")
+
 species_by_method_combined <- ggplot(combined_df_anopheles, aes(x = season, y = count, fill = collection_type)) +
   geom_bar(stat = "identity", position = "stack") +
   facet_wrap(~ settlement_type) +
@@ -630,7 +654,7 @@ species_by_method_combined <- ggplot(combined_df_anopheles, aes(x = season, y = 
 # display the plot
 species_by_method_combined
 
-ggsave(filename = paste0(ResultDir, "/", Sys.Date(), '_combined_species_collection_plot.pdf'), plot = species_by_method_combined, width = 10, height = 6)
+ggsave(file.path(NewFigDir, '_combined_species_collection_plot.pdf'), plot = species_by_method_combined, width = 10, height = 6)
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------
 ### 3) Mosquito Species by Collection Method Only
@@ -734,6 +758,7 @@ blood_status_plot <- ggplot(bm_status_by_settlement, aes(x = species, y = count,
     values = blood_palette,
     name = "Blood Meal Status",
     labels = c("Fed", "Unfed")) +
+  geom_text(aes(label = count), position = position_stack(vjust = 0.5), size = 4, color = "white") +
   facet_wrap(~settlement_type)+
   labs(title = "Distribution of Adult Larvae (Mosquitoes) by Blood Meal Status", x = "Species", y = "Number of Blood-Fed Adult Mosquitoes") +
   labs(subtitle = "By PSC Collection Only") +
@@ -746,7 +771,7 @@ blood_status_plot <- ggplot(bm_status_by_settlement, aes(x = species, y = count,
 blood_status_plot
 
 # save as .pdf
-ggsave(filename = paste0(NewFigDir, '_blood_status_plot.pdf'), plot = blood_status_plot, width = 12, height = 8)
+ggsave(file.path(NewFigDir, '_blood_status_plot.pdf'), plot = blood_status_plot, width = 8, height = 4)
 
 
 ## =========================================================================================================================================
@@ -790,9 +815,10 @@ molecular_df <- molecular_df %>%
   )) %>%
   select(-`...8`)
 
+write.csv(molecular_df, file = file.path(WetData, "cleaned_molecular_df_only_CDC_PSC.csv"))
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------
-### 5) Sporozoite Rate in CDC vs PSC Collections and by Species
+### 5) Sporozoite Rate in CDC vs PSC Collections by Collection Method
 ## -----------------------------------------------------------------------------------------------------------------------------------------
 
 # make df with counts of sporozoite positivity by collection method
@@ -915,21 +941,36 @@ cdc_wet_dry_subset <- cdc_wet_dry[!apply(cdc_wet_dry, 1, function(row) all(is.na
 # remove rows for which settlement type is NA
 cdc_wet_dry_subset <- subset(cdc_wet_dry_subset, !(settlement_type %in% c(NA)))
 
+# -------------- data for plots grouped by settlement type, location, and season ----------------
 # summarize anopheles caught by settlement classification and location
 ano_caught_cdc <- cdc_wet_dry_subset %>% 
   group_by(settlement_type, location, season) %>%
   summarise(anopheles_caught = sum(Anopheles, na.rm = TRUE)) %>%  # sum Anopheles, handling NA
   ungroup()
 
-# set number of night baits to 14 for dry season and 28 for wet season
+# set number of night baits to 14 for dry season and 48 for wet season
 ano_caught_cdc <- ano_caught_cdc %>%
-  mutate(no_night_bait = ifelse(season == "dry", 14, 28))
+  mutate(no_night_bait = ifelse(season == "dry", 14, 192))
 
 # calculate HBR (# of mosquitoes collected / (number of nights x number of humans slept in the house as bait))
 ano_caught_cdc <- ano_caught_cdc %>%
   mutate(HBR = anopheles_caught / no_night_bait)
 
-# plot indoor and outdoor hbr data together
+# -------------- data for plots grouped by settlement type and season only -----------------------
+ano_caught_cdc_settlement <- cdc_wet_dry_subset %>% 
+  group_by(settlement_type, season) %>%
+  summarise(anopheles_caught = sum(Anopheles, na.rm = TRUE)) %>%  # sum Anopheles, handling NA
+  ungroup()
+
+# set number of night baits to 14 for dry season and 192 for wet season
+ano_caught_cdc_settlement <- ano_caught_cdc_settlement %>%
+  mutate(no_night_bait = ifelse(season == "dry", 14, 192))
+
+# calculate HBR (# of mosquitoes collected / (number of nights x number of humans slept in the house as bait))
+ano_caught_cdc_settlement <- ano_caught_cdc_settlement %>%
+  mutate(HBR = anopheles_caught / no_night_bait)
+
+# ---------------------------------------- plots -------------------------------------------------
 wet_dry_palette <- c("#d9af8d", "#0d80bf")
 
 hbr_plot <- ggplot(data = ano_caught_cdc, aes(x = settlement_type, y = HBR, 
@@ -952,19 +993,49 @@ hbr_plot <- ggplot(data = ano_caught_cdc, aes(x = settlement_type, y = HBR,
   theme_manuscript() +
   theme(
     plot.title = element_text(size = 12),
-    legend.position = c(0.98, 0.98), # Place legend inside the plot (top-right corner)
-    legend.justification = c("right", "top"), # Align legend box with top-right
-    legend.box = "horizontal", # Align legends horizontally
-    legend.box.background = element_rect(color = "black", size = 0.5), # Black outline
-    legend.spacing = unit(0.5, "cm"), # Space between legend items
-    legend.box.margin = margin(6, 6, 6, 6), # Padding inside the legend box
+    legend.position = c(0.98, 0.98),
+    legend.justification = c("right", "top"),
+    legend.box = "horizontal",
+    legend.box.background = element_rect(color = "black", size = 0.5),
+    legend.spacing = unit(0.5, "cm"),
+    legend.box.margin = margin(6, 6, 6, 6),
     legend.text = element_text(size = 10),
     legend.title = element_text(size = 14)
   )
 hbr_plot
 
 # save as .pdf
-ggsave(filename = paste0(ResultDir, "/", Sys.Date(), '_hbr_cdc_plot.pdf'), plot = hbr_plot, width = 8, height = 8)
+ggsave(file.path(NewFigDir, '_hbr_cdc_plot.pdf'), plot = hbr_plot, width = 8, height = 7)
+
+# plot for hbr grouped only by settlement type and season only
+hbr_plot_settlement <- ggplot(data = ano_caught_cdc_settlement, aes(x = settlement_type, y = HBR, 
+                                              group = interaction(season),
+                                              colour = season)) +
+  scale_x_discrete(limits = c("Formal", "Informal", "Slum")) +
+  geom_jitter(position = position_jitter(width = 0.1, height = 0), size = 5) + # jitter points as some HBR values are the same, causing overlap
+  labs(y = "Human Biting Rate", x = "Settlement Type",
+       title = "Human Biting Rate by Settlement Type and Season") +
+  scale_color_manual(
+    values = wet_dry_palette,
+    name = "Season",
+    labels = c("Dry", "Wet")
+  ) +
+  theme_manuscript() +
+  theme(
+    plot.title = element_text(size = 12),
+    legend.position = c(0.98, 0.98),
+    legend.justification = c("right", "top"),
+    legend.box = "horizontal",
+    legend.box.background = element_rect(color = "black", size = 0.5),
+    legend.spacing = unit(0.5, "cm"),
+    legend.box.margin = margin(6, 6, 6, 6),
+    legend.text = element_text(size = 10),
+    legend.title = element_text(size = 14)
+  )
+hbr_plot_settlement
+
+# save as .pdf
+ggsave(file.path(NewFigDir, '_settlement_hbr_cdc_plot.pdf'), plot = hbr_plot_settlement, width = 8, height = 7)
 
 ## =========================================================================================================================================
 ### ANOVA for Human Biting Rate (HBR)
@@ -1059,7 +1130,7 @@ ird_plot <- ggplot(data = ano_caught_psc,
 ird_plot
 
 # save as .pdf
-ggsave(filename = paste0(ResultDir, "/", Sys.Date(), '_ird_psc_plot.pdf'), plot = ird_plot, width = 8, height = 8)
+ggsave(file.path(NewFigDir, '_ird_psc_plot.pdf'), plot = ird_plot, width = 8, height = 6)
 
 ## =========================================================================================================================================
 ### ANOVA for Indoor Residual Density (IRD)
@@ -1103,32 +1174,32 @@ output_file <- file.path(ResultDir, "anova_ird.docx")
 print(doc, target = output_file)
 
 ## =========================================================================================================================================
-### Entomological Indicators (HBR, IRD, EIR, settlement type) by season
+### Entomological Indicators (HBR, IRD, EIR, settlement type) by season and settlement type
 ## =========================================================================================================================================
 
-# get HBR by season
-hbr_season <- cdc_wet_dry_subset %>% 
-  group_by(season) %>%
+# get HBR by season and settlement type
+hbr_season_settlement <- cdc_wet_dry_subset %>% 
+  group_by(season, settlement_type) %>%
   summarise(anopheles_caught = sum(Anopheles, na.rm = TRUE)) %>%  # sum Anopheles, handling NA
   ungroup()
-hbr_season <- hbr_season %>%
-  mutate(no_night_bait = ifelse(season == "dry", 14, 28))
-hbr_season <- hbr_season %>%
+hbr_season_settlement <- hbr_season_settlement %>%
+  mutate(no_night_bait = ifelse(season == "dry", 14, 192))
+hbr_season_settlement <- hbr_season_settlement %>%
   mutate(HBR = anopheles_caught / no_night_bait) %>%
   select(season, HBR)
 
-# get IRD by season
-ird_season <- psc_wet_dry %>% 
-  group_by(season) %>%
+# get IRD by season and settlement type
+ird_season_settlement <- psc_wet_dry %>% 
+  group_by(season, settlement_type) %>%
   summarise(anopheles_caught = sum(Anopheles, na.rm = TRUE)) %>%  # sum Anopheles, handling NA
   ungroup()
-ird_season <- ird_season %>%
+ird_season_settlement <- ird_season_settlement %>%
   mutate(no_rooms_sampled = ifelse(season == "dry", 40, 120))
-ird_season <- ird_season %>%
+ird_season_settlement <- ird_season_settlement %>%
   mutate(IRD = anopheles_caught / no_rooms_sampled) %>%
   select(season, IRD)
 
-# get sporozoite rate by season
+# get sporozoite rate by season and settlement type
 sporozoite_season <- molecular_df %>%
   summarise(
     sporozoite_positive_rate = mean(sporozoite_result == "Positive", na.rm = TRUE)
@@ -1187,17 +1258,67 @@ indicators_season_plot <- ggplot(indicators_season_long, aes(x = indicator, y = 
 indicators_season_plot
 
 # save as .pdf
-ggsave(filename = paste0(ResultDir, "/", Sys.Date(), '_indicators_season.pdf'), plot = indicators_season_plot, width = 8, height = 8)
+ggsave(file.path(NewFigDir, '_indicators_season.pdf'), plot = indicators_season_plot, width = 8, height = 10)
 
 ## =========================================================================================================================================
-### Entomological Indicators (HBR, IRD, EIR, settlement type) by settlement type
+### EIR by Ward Name
+## This is the only variable in common between the CDC data and molecular data
+## =========================================================================================================================================
+
+# get hbr by ward name
+hbr <- cdc_wet_dry_subset %>%
+  group_by(ward_name, season) %>%
+  summarise(anopheles_caught = sum(Anopheles, na.rm = TRUE), .groups = "drop") %>%  # sum Anopheles
+  mutate(no_night_bait = ifelse(season == "dry", 14, 192)) %>%  # assign bait nights per season
+  group_by(ward_name) %>%
+  summarise(
+    total_anopheles_caught = sum(anopheles_caught, na.rm = TRUE),
+    total_bait_nights = sum(no_night_bait, na.rm = TRUE),  # sum bait nights across seasons
+    .groups = "drop"
+  ) %>%
+  mutate(HBR = total_anopheles_caught / total_bait_nights) %>%  # calculate HBR
+  select(ward_name, HBR)
+
+# get sporozoite rate by ward name and indoor/outdoor
+sporozoite <- molecular_df %>%
+  group_by(ward_name) %>%
+  summarise(
+    sporozoite_positive_rate = mean(sporozoite_result == "Positive", na.rm = TRUE)
+  ) %>%
+  select(ward_name, sporozoite_positive_rate)
+
+# join dfs
+eir <- hbr %>%
+  left_join(sporozoite, by = "ward_name")
+
+# calculate entomological inoculation rate (EIR): human biting rate x sporozoite rate
+eir <- eir %>%
+  mutate(EIR = HBR * sporozoite_positive_rate)
+
+# bar chart to show HBR, sporozoite rate, and EIR
+eir_long <- eir %>%
+  pivot_longer(cols = c(HBR, sporozoite_positive_rate, EIR),
+               names_to = "metric", values_to = "value")
+
+# bar chart
+eir_plot <- ggplot(eir_long, aes(x = ward_name, y = value, fill = metric)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.8)) +
+  scale_fill_manual(values = c("HBR" = "#1f77b4", "sporozoite_positive_rate" = "#ff7f0e", "EIR" = "#2ca02c")) +
+  labs(x = "Ward", y = "Value", fill = "Metric",
+       title = "HBR, Sporozoite Positivity Rate, and EIR by Ward") +
+  theme_manuscript()
+
+ggsave(file.path(NewFigDir, '_EIR_bar_chart.pdf'), plot = eir_plot, width = 8, height = 6)
+
+## =========================================================================================================================================
+### Entomological Indicators (HBR, IRD, EIR) by settlement type
 ## =========================================================================================================================================
 
 # get hbr by settlement type
 hbr_settlement <- cdc_wet_dry_subset %>%
   group_by(settlement_type, season) %>%
   summarise(anopheles_caught = sum(Anopheles, na.rm = TRUE), .groups = "drop") %>%  # sum Anopheles
-  mutate(no_night_bait = ifelse(season == "dry", 14, 28)) %>%  # assign bait nights per season
+  mutate(no_night_bait = ifelse(season == "dry", 14, 48)) %>%  # assign bait nights per season
   group_by(settlement_type) %>%
   summarise(
     total_anopheles_caught = sum(anopheles_caught, na.rm = TRUE),
@@ -1280,7 +1401,7 @@ indicators_settlement_plot <- ggplot(indicators_settlement_long, aes(x = indicat
 indicators_settlement_plot
 
 # save as .pdf
-ggsave(filename = paste0(ResultDir, "/", Sys.Date(), '_indicators_settlement.pdf'), plot = indicators_settlement_plot, width = 12, height = 8)
+ggsave(file.path(NewFigDir, '_indicators_settlement.pdf'), plot = indicators_settlement_plot, width = 12, height = 8)
 
 
 ## =========================================================================================================================================
@@ -1357,7 +1478,7 @@ coinfection_plot <- ggplot(coinfection_long, aes(x = collection_type, y = rate, 
 coinfection_plot
 
 # save as .pdf
-ggsave(filename = paste0(ResultDir, "/", Sys.Date(), '_coinfection_plot.pdf'), plot = coinfection_plot, width = 12, height = 8)
+ggsave(file.path(NewFigDir, '_coinfection_plot.pdf'), plot = coinfection_plot, width = 12, height = 8)
 
 # plot: prevalence by species
 ggplot(molecular_df, aes(x = species, fill = lf_coinfection)) +

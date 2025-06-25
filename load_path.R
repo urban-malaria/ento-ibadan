@@ -15,7 +15,7 @@ if ("ifeomaozodiegwu" %in% user) {
   EntoDat <- file.path(NuDir, "data", "nigeria", "kano_ibadan", "kano_ibadan_ento", "Osun-excel")
   WetData <- file.path(NuDir, "data", "nigeria", "kano_ibadan", "kano_ibadan_ento", "Wet Season Data_Ibadan")
   ResultDir <- file.path(NuDir, "projects/Manuscripts/ongoing/dry season entomology_manuscript/Grace/figures/plots")
-  NewFigDir <- file.path(NuDir, "projects/Manuscripts/ongoing/dry season entomology_manuscript/Grace/updated/figures")
+  NewFigDir <- file.path(NuDir, "projects/Manuscripts/ongoing/dry season entomology_manuscript/Grace/updated/figures/pdf")
   shapepath <- file.path(NuDir,"/data/nigeria/kano_ibadan/kano_ibadan_shape_files")
 } else {
   user <- Sys.getenv("USERNAME")
