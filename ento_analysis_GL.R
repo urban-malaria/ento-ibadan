@@ -1265,19 +1265,19 @@ ggsave(file.path(NewFigDir, '_indicators_season.pdf'), plot = indicators_season_
 ## This is the only variable in common between the CDC data and molecular data
 ## =========================================================================================================================================
 
-# calculate HBR by ward name and indoor/outdoor
-hbr <- cdc_wet_dry_subset %>% 
+# get hbr by ward name
+hbr <- cdc_wet_dry_subset %>%
   group_by(ward_name, season) %>%
-  summarise(anopheles_caught = sum(Anopheles, na.rm = TRUE)) %>%  # sum Anopheles, handling NA
-  ungroup()
-
-# set number of night baits to 14 for dry season and 48 for wet season
-hbr <- hbr %>%
-  mutate(no_night_bait = ifelse(season == "dry", 14, 192))
-
-# calculate HBR (# of mosquitoes collected / (number of nights x number of humans slept in the house as bait))
-hbr <- hbr %>%
-  mutate(HBR = anopheles_caught / no_night_bait)
+  summarise(anopheles_caught = sum(Anopheles, na.rm = TRUE), .groups = "drop") %>%  # sum Anopheles
+  mutate(no_night_bait = ifelse(season == "dry", 14, 192)) %>%  # assign bait nights per season
+  group_by(ward_name) %>%
+  summarise(
+    total_anopheles_caught = sum(anopheles_caught, na.rm = TRUE),
+    total_bait_nights = sum(no_night_bait, na.rm = TRUE),  # sum bait nights across seasons
+    .groups = "drop"
+  ) %>%
+  mutate(HBR = total_anopheles_caught / total_bait_nights) %>%  # calculate HBR
+  select(ward_name, HBR)
 
 # get sporozoite rate by ward name and indoor/outdoor
 sporozoite <- molecular_df %>%
@@ -1286,6 +1286,29 @@ sporozoite <- molecular_df %>%
     sporozoite_positive_rate = mean(sporozoite_result == "Positive", na.rm = TRUE)
   ) %>%
   select(ward_name, sporozoite_positive_rate)
+
+# join dfs
+eir <- hbr %>%
+  left_join(sporozoite, by = "ward_name")
+
+# calculate entomological inoculation rate (EIR): human biting rate x sporozoite rate
+eir <- eir %>%
+  mutate(EIR = HBR * sporozoite_positive_rate)
+
+# bar chart to show HBR, sporozoite rate, and EIR
+eir_long <- eir %>%
+  pivot_longer(cols = c(HBR, sporozoite_positive_rate, EIR),
+               names_to = "metric", values_to = "value")
+
+# bar chart
+eir_plot <- ggplot(eir_long, aes(x = ward_name, y = value, fill = metric)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.8)) +
+  scale_fill_manual(values = c("HBR" = "#1f77b4", "sporozoite_positive_rate" = "#ff7f0e", "EIR" = "#2ca02c")) +
+  labs(x = "Ward", y = "Value", fill = "Metric",
+       title = "HBR, Sporozoite Positivity Rate, and EIR by Ward") +
+  theme_manuscript()
+
+ggsave(file.path(NewFigDir, '_EIR_bar_chart.pdf'), plot = eir_plot, width = 8, height = 6)
 
 ## =========================================================================================================================================
 ### Entomological Indicators (HBR, IRD, EIR) by settlement type
